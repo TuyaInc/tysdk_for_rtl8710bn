@@ -1,0 +1,186 @@
+############################################################
+####	<1> explain
+####	<1.1> ROOT_DIR:import from root Makefile
+####	<1.2> TY_IOT_CFLAGS:export to root Makefile
+####	<1.3> TY_IOT_LIB:export to root Makefile
+####	<1.4> TY_IOT_LIB_LDFLAGS:export to root Makefile
+####	<1.5> TY_SRCS:export to root Makefile
+####	<1.6> TY_OBJS:export to root Makefile
+############################################################
+
+############################################################
+####	<2> compile option
+############################################################
+
+BUILD_DATE=$(shell date +%Y_%m_%d)
+BUILD_TIME=$(shell date +%H_%M_%S)
+#GIT_USER_ALL=$(shell git config --get user.email)
+#GIT_USER=${GIT_USER_ALL%@*}
+GIT_USER=tuya_iot_team
+
+#具体版本迭代情况参考sdk_version.h
+IOT_SDK_VER=2.0.0
+PROJECT_NAME=${APP_BIN_NAME}
+TARGET_PLATFORM=${BUILD_TYPE}
+
+#无线模式
+WIFI_GW=1
+#debug模式
+TUYA_IOT_DEBUG=1
+#文件模式存储
+KV_FILE=0
+#socket shutdown模式
+SHUTDOWN_MODE=0
+#小端
+LITTLE_END=1
+
+#支持本地场景联动
+ENABLE_LOCAL_LINKAGE=0
+#支持云存储功能
+ENABLE_CLOUD_OPERATION=0
+#支持子设备管理
+ENABLE_SUBDEVICE=0
+#支持工程版切换
+ENABLE_ENGINEER_TO_NORMAL=0
+#操作系统
+ENABLE_SYS_RPC=0
+#安全芯片
+TY_SECURITY_CHIP=0
+#操作系统
+OPERATING_SYSTEM=SYSTEM_REALTEK8710_1M
+#RTC
+TY_RTC=1
+#看门狗
+TY_WATCHDOG=1
+#局域网加密
+ENABLE_LAN_ENCRYPTION=1
+#ap 快连
+ENABLE_AP_FAST_CONNECT=1
+
+
+ifeq ("${BUILD_TYPE}", "8710_1M")
+TLS_MODE=TLS_DISABLE
+TY_SECURITY_CHIP=0
+OPERATING_SYSTEM=SYSTEM_REALTEK8710_1M
+endif
+
+ifeq ("${BUILD_TYPE}", "8710_2M")
+TLS_MODE=TLS_TUYA_ECC_PSK
+TY_SECURITY_CHIP=0
+OPERATING_SYSTEM=SYSTEM_REALTEK8710_2M
+endif
+
+ifeq ("${BUILD_TYPE}", "8710_2M_SECURITY_CHIP")
+TLS_MODE=TLS_TUYA_ECC_PSK
+TY_SECURITY_CHIP=1
+OPERATING_SYSTEM=SYSTEM_REALTEK8710_2M
+endif
+
+
+TY_IOT_CFLAGS =
+TUYA_IOT_ROOT_DIR = $(ROOT_DIR)/project
+
+############################################################
+####	<3> compile files
+############################################################
+TY_IOT_LIB = $(TUYA_IOT_ROOT_DIR)/tuya_iot/lib/libtuya_iot_lib.a # need export
+TY_IOT_LIB_LDFLAGS = -L$(dir $(TY_IOT_LIB)) -l$(patsubst lib%.a,%, $(notdir $(TY_IOT_LIB))) # need export
+
+############################################################
+####	<4> define compile src and include files
+############################################################
+# 定义需要编译以及忽略的文件夹目录(递归)
+SRC_BASE_DIRS = #$(TUYA_IOT_ROOT_DIR)/tuya_iot/src
+# 定义需要包含以及忽略的文件夹目录(递归)
+INC_BASE_DIRS = $(TUYA_IOT_ROOT_DIR)/tuya_iot/include/
+
+
+
+ifeq ($(WIFI_GW),0)
+IGNORE_SRC_BASE_DIRS += #$(TUYA_IOT_ROOT_DIR)/tuya_iot/src/tuya_adapter/wifi_intf
+IGNORE_INC_DIRS += $(TUYA_IOT_ROOT_DIR)/tuya_iot/include/tuya_adapter/wifi_intf
+else
+IGNORE_SRC_BASE_DIRS += #$(TUYA_IOT_ROOT_DIR)/tuya_iot/src/tuya_adapter/base_nw_intf
+IGNORE_INC_DIRS += $(TUYA_IOT_ROOT_DIR)/tuya_iot/include/tuya_adapter/base_nw_intf
+endif
+
+ifeq ($(KV_FILE), 0)
+IGNORE_SRC_BASE_DIRS += #$(TUYA_IOT_ROOT_DIR)/tuya_iot/src/tuya_base/kv_storge/file
+IGNORE_INC_DIRS += $(TUYA_IOT_ROOT_DIR)/tuya_iot/include/tuya_base/kv_storge/file
+
+IGNORE_SRC_BASE_DIRS += #$(TUYA_IOT_ROOT_DIR)/tuya_iot/src/tuya_base/uf_file/file
+#IGNORE_INC_DIRS += $(TUYA_IOT_ROOT_DIR)/tuya_iot/include/tuya_base/uf_file/file
+else
+IGNORE_SRC_BASE_DIRS += #$(TUYA_IOT_ROOT_DIR)/tuya_iot/src/tuya_base/kv_storge/flash
+IGNORE_INC_DIRS += $(TUYA_IOT_ROOT_DIR)/tuya_iot/include/tuya_base/kv_storge/flash
+
+IGNORE_SRC_BASE_DIRS += $(TUYA_IOT_ROOT_DIR)/tuya_iot/src/tuya_base/uf_file/flash
+IGNORE_INC_DIRS += $(TUYA_IOT_ROOT_DIR)/tuya_iot/include/tuya_base/uf_file/flash
+endif
+
+ifeq ($(TLS_MODE), TLS_DISABLE)
+IGNORE_SRC_BASE_DIRS += #$(TUYA_IOT_ROOT_DIR)/tuya_iot/src/tuya_middleware/tls/mbedtls
+IGNORE_INC_BASE_DIRS += $(TUYA_IOT_ROOT_DIR)/tuya_iot/include/tuya_middleware/tls/mbedtls
+endif
+
+ifeq ($(WIFI_GW), 0)
+IGNORE_SRC_BASE_DIRS += #$(TUYA_IOT_ROOT_DIR)/tuya_iot/src/tuya_iot_sdk/wifi_sdk \
+                                           $(TUYA_IOT_ROOT_DIR)/tuya_iot/src/tuya_iot_sdk/wifi_cfg_serv
+IGNORE_INC_BASE_DIRS += $(TUYA_IOT_ROOT_DIR)/tuya_iot/include/tuya_iot_sdk/wifi_sdk \
+                                           $(TUYA_IOT_ROOT_DIR)/tuya_iot/include/tuya_iot_sdk/wifi_cfg_serv
+else
+IGNORE_SRC_BASE_DIRS += #$(TUYA_IOT_ROOT_DIR)/tuya_iot/src/tuya_iot_sdk/base_sdk
+IGNORE_INC_BASE_DIRS += $(TUYA_IOT_ROOT_DIR)/tuya_iot/include/tuya_iot_sdk/base_sdk
+endif
+
+ifneq ($(ENABLE_LOCAL_LINKAGE), 1)
+IGNORE_SRC_BASE_DIRS += #$(TUYA_IOT_ROOT_DIR)/tuya_iot/src/tuya_iot_sdk/local_linkage
+IGNORE_INC_BASE_DIRS += $(TUYA_IOT_ROOT_DIR)/tuya_iot/include/tuya_iot_sdk/local_linkage
+endif
+
+ifneq ($(ENABLE_CLOUD_OPERATION), 1)
+IGNORE_SRC_BASE_DIRS += #$(TUYA_IOT_ROOT_DIR)/tuya_iot/src/tuya_iot_sdk/public_cloud
+IGNORE_INC_BASE_DIRS += $(TUYA_IOT_ROOT_DIR)/tuya_iot/include/tuya_iot_sdk/public_cloud
+endif
+
+ifneq ($(ENABLE_SYS_RPC), 1)
+IGNORE_SRC_BASE_DIRS += #$(TUYA_IOT_ROOT_DIR)/tuya_iot/src/tuya_iot_sdk/sys_rpc
+IGNORE_INC_BASE_DIRS += $(TUYA_IOT_ROOT_DIR)/tuya_iot/include/tuya_iot_sdk/sys_rpc
+endif
+
+
+ifneq ($(ENABLE_AI_SPEAKER), 1)
+IGNORE_SRC_BASE_DIRS += #$(TUYA_IOT_ROOT_DIR)/tuya_iot/src/tuya_iot_sdk/ai_spearker
+IGNORE_INC_BASE_DIRS += $(TUYA_IOT_ROOT_DIR)/tuya_iot/include/tuya_iot_sdk/ai_spearker
+endif
+
+ifndef TUYA_OPERATOR_TYPE
+IGNORE_SRC_BASE_DIRS += #$(TUYA_IOT_ROOT_DIR)/tuya_iot/src/tuya_iot_sdk/third_cloud
+IGNORE_INC_BASE_DIRS += $(TUYA_IOT_ROOT_DIR)/tuya_iot/include/tuya_iot_sdk/third_cloud
+endif
+
+ifeq ($(TUYA_OPERATOR_TYPE), TUYA_OPERATOR_DISABLE)
+IGNORE_SRC_BASE_DIRS += #$(TUYA_IOT_ROOT_DIR)/tuya_iot/src/tuya_iot_sdk/third_cloud
+IGNORE_INC_BASE_DIRS += $(TUYA_IOT_ROOT_DIR)/tuya_iot/include/tuya_iot_sdk/third_cloud
+endif
+
+
+SRC_DIRS = $(filter-out $(shell find $(IGNORE_SRC_BASE_DIRS) -type d),\
+                     $(foreach base_dir, $(SRC_BASE_DIRS), $(shell find $(base_dir) -type d)))
+
+TY_SRCS_ALL += $(foreach dir, $(SRC_DIRS), $(wildcard $(dir)/*.c)) # need export
+TY_SRCS_ALL += $(foreach dir, $(SRC_DIRS), $(wildcard $(dir)/*.cpp))
+TY_SRCS_ALL += $(foreach dir, $(SRC_DIRS), $(wildcard $(dir)/*.s))
+TY_SRCS_ALL += $(foreach dir, $(SRC_DIRS), $(wildcard $(dir)/*.S))
+
+TY_SRCS = $(filter-out $(IGNORE_SRC_BASE_FILES), $(TY_SRCS_ALL) )
+
+TY_OBJS = $(addsuffix .o, $(basename  $(TY_SRCS) ) ) # need export
+
+INC_DIRS = $(filter-out $(shell find $(IGNORE_INC_DIRS) -type d),\
+                   $(foreach base_dir, $(INC_BASE_DIRS), $(shell find $(base_dir) -type d)))
+#INC_DIRS += $(ROOT_DIR)/include
+
+TY_IOT_CFLAGS += $(foreach base_dir, $(INC_DIRS), $(addprefix -I , $(base_dir))) # need export
+TY_IOT_CFLAGS += -Wno-unused-result
+

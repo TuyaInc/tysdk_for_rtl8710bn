@@ -1,0 +1,30 @@
+
+/*
+ * Release Note
+ */
+
+v3.6a_beta_v1_r19135
+	1. First release for 8710b.
+
+v3.6a_beta_v2_r19823
+	1. Provide sleep, deepsleep, deep standby and Pinmap config files for user configuration.
+	2. Add pm_sleep_uart example for uart wakeup system from sleep mode.
+	3. Fix sscanf related issue.
+	4. Fine tune WiFi phy parameters.
+	5. Add API to get deep sleep wake up reason: deepsleep_get_bootup_reason().
+	6. Revise OTA example to use the same DownloadServer as ameba-1.
+
+v3.6b
+	1. Add BOR code and example.
+	2. Fix using GTIMER1 caused system hang.
+	3. Fix uart continuous tx caused system hang because uart line status not cleared.
+	4. Fix realtek simple config related issues.
+	5. Add RDP bin build exampel and RDP OTA example.
+	
+v4.0a_beta_v1_gcc
+	1. Add GCC Project
+
+
+4.0a_critical_patch_r30188_promisc_MIMO
+	1. Fix smartconfig packet dropout
+	   	

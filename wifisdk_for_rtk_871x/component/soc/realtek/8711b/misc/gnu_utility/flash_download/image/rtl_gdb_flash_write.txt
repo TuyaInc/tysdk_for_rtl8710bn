@@ -1,0 +1,190 @@
+# GDB script for loading ram.bin process
+
+source ../../../component/soc/realtek/8711b/misc/gnu_utility/flash_download/image/rtl_gdb_jtag_boot_com.txt
+
+#===============================================================================
+#Macro define
+set $FLASHDATBUFSIZE = 0x800
+
+set $IMAGE_BOOT = 0x001
+set $IMAGE_XIP1 = 0x002
+set $IMAGE_XIP2 = 0x003
+set $IMAGE_SYSD = 0x004
+
+#===============================================================================
+#register define
+set $PERI_ON_BASE = 0x40000000
+set $REG_SOC_PERI_FUNC0_EN = 0x0210
+set $SPI_FLASH_BASE = 0x08000000
+#===============================================================================
+
+#Variables declaration (1)
+#binary file size
+set $BOOTALLFileSize = 0x0000
+set $RamFileSize = 0x0000
+source BTAsize.gdb
+source fwsize.gdb
+printf "-------------------------------\n"
+printf "BOOTALLFileSize: %x\n",$BOOTALLFILESize
+printf "RamFileSize: %x\n",$RamFileSize
+printf "-------------------------------\n"
+
+
+#===============================================================================
+#Load flash download file
+printf "Load flash loader.\n"
+file ../../../component/soc/realtek/8711b/misc/gnu_utility/flash_download/image/target_FPGA.axf
+#Load the file
+#lo
+#restore ./application/Debug/bin/rom.bin binary 0x0
+restore ../../../component/soc/realtek/8711b/misc/gnu_utility/flash_download/image/flash_loader_ram_1.bin binary 0x10002000
+#===============================================================================
+
+
+#===============================================================================
+#flash write function
+define flash_write
+	printf "flash_write FileName:%x \n", $arg0
+	printf "flash_write FileSize:%d \n", $arg1
+	printf "flash_write FlashAddrForWrite:%x \n", FlashAddrForWrite
+
+	set $FileName = $arg0
+	set $FileSize = $arg1
+	set $Loopnumber = ($FileSize / $FLASHDATBUFSIZE)
+	set $TailSize = ($FileSize % $FLASHDATBUFSIZE)
+	printf "FileSize: %x\n",$FileSize
+	printf "Loopnumber = %d\n", $Loopnumber
+	printf "TailSize = %d\n", $TailSize
+	printf "global variables\n"
+
+	set $FILESTARTADDR = 0
+	set $FLASHDATSRC = FlashDatSrc
+	if( $FileSize <  $FLASHDATBUFSIZE )
+		set FlashBlockWriteSize = $FileSize
+	else
+		set FlashBlockWriteSize = $FLASHDATBUFSIZE
+	end
+
+	printf "FlashDatSrc:%x\n", $FLASHDATSRC
+	printf  "FlashBlockWriteSize "
+	printf "FlashBlockWriteSize:%x\n", FlashBlockWriteSize
+	printf  "FlashAddrForWrite:%x", FlashAddrForWrite
+
+	printf  "Flash write start...\n"
+	set $Loop = 0
+	while  ($Loop < $Loopnumber)
+    		set $FILESTARTADDR = $FLASHDATBUFSIZE * $Loop
+    		printf "FILESTARTADDR"
+    		p /x $FILESTARTADDR
+    		p /x FlashAddrForWrite
+    		p /x $Loop
+
+		if ($FileName == $IMAGE_XIP1)
+    			restore ./application/Debug/bin/image2_all_ota1.bin binary ($FLASHDATSRC-$FILESTARTADDR) $FILESTARTADDR ($FILESTARTADDR + $FLASHDATBUFSIZE)
+		end
+		if ($FileName == $IMAGE_XIP2)
+    			restore ./application/Debug/bin/image2_all_ota2.bin binary ($FLASHDATSRC-$FILESTARTADDR) $FILESTARTADDR ($FILESTARTADDR + $FLASHDATBUFSIZE)
+		end
+		if ($FileName == $IMAGE_BOOT)
+			restore ./application/Debug/bin/boot_all.bin binary ($FLASHDATSRC-$FILESTARTADDR) $FILESTARTADDR ($FILESTARTADDR + $FLASHDATBUFSIZE)
+		end
+		if ($FileName == $IMAGE_SYSD)
+			restore ./application/Debug/bin/system.bin binary ($FLASHDATSRC-$FILESTARTADDR) $FILESTARTADDR ($FILESTARTADDR + $FLASHDATBUFSIZE)
+		end
+    		c
+    
+    		set $Loop = $Loop + 0x01
+	end
+
+	if ( $TailSize > 0)
+    		set $FILESTARTADDR = $FLASHDATBUFSIZE * $Loop
+
+		printf "FILESTARTADDR"
+		p /x $FILESTARTADDR
+		p /x FlashAddrForWrite
+		p /x $Loop
+
+		if ($FileName == $IMAGE_XIP1)
+			restore ./application/Debug/bin/image2_all_ota1.bin binary ($FLASHDATSRC-$FILESTARTADDR) $FILESTARTADDR ($FILESTARTADDR + $TailSize)
+		end
+		if ($FileName == $IMAGE_XIP2)
+			restore ./application/Debug/bin/image2_all_ota2.bin binary ($FLASHDATSRC-$FILESTARTADDR) $FILESTARTADDR ($FILESTARTADDR + $TailSize)
+		end
+		if ($FileName == $IMAGE_BOOT)
+			restore ./application/Debug/bin/boot_all.bin binary ($FLASHDATSRC-$FILESTARTADDR) $FILESTARTADDR ($FILESTARTADDR + $TailSize)
+		end
+		if ($FileName == $IMAGE_SYSD)
+			restore ./application/Debug/bin/system.bin binary ($FLASHDATSRC-$FILESTARTADDR) $FILESTARTADDR ($FILESTARTADDR + $TailSize)
+		end
+		c
+	end
+end
+
+#===============================================================================
+#Set rom boot BIT to flash loader
+set $Temp = 0x0
+set $Temp = {int}($PERI_ON_BASE+$REG_SOC_PERI_FUNC0_EN)
+p /x $Temp
+
+set $Temp = ($Temp | (0x01 << 26))
+set $Temp = ($Temp & ~(0x01 << 27))
+set $Temp = ($Temp & ~(0x01 << 28))
+p /x $Temp
+
+set {int}($PERI_ON_BASE+$REG_SOC_PERI_FUNC0_EN) = $Temp
+printf "....\n"
+printf "wakeup bit(%x):%x\n", ($PERI_ON_BASE+$REG_SOC_PERI_FUNC0_EN), {int}($PERI_ON_BASE+$REG_SOC_PERI_FUNC0_EN)
+#===============================================================================
+
+#===============================================================================
+#b RtlFlashProgram:StartOfFlashBlockWrite
+b rtl_flash_download.c:88
+
+#continue
+c
+#=============================================================================== 
+
+#=============================================================================== 
+#flash write
+#set $XIPBootSize =4324
+set $XIPBootSize =$BOOTALLFILESize
+set FlashAddrForWrite =0x00000
+flash_write $IMAGE_BOOT $XIPBootSize
+
+
+#dump binary memory  dump.bin $SPI_FLASH_BASE ($SPI_FLASH_BASE + $XIPBootSize)
+
+set $SysDataSize =32
+set FlashAddrForWrite =0x09000
+#flash_write $IMAGE_SYSD $SysDataSize
+
+#set $FlashFileSize =299200
+set $FlashFileSize =$RamFileSize
+
+set FlashAddrForWrite =0x0B000
+flash_write $IMAGE_XIP1 $FlashFileSize
+
+set $OTA2Size =299200
+set FlashAddrForWrite =0x80000
+#flash_write $IMAGE_XIP2 $OTA2Size
+
+#Tell flashloader complete flag
+set FlashWriteComplete = 0x1
+#=============================================================================== 
+
+#=============================================================================== 
+#dump image from flash
+printf "dump for check\n"
+info b
+delete
+info b
+
+quit
+
+c
+
+#delete
+
+quit
+#===============================================================================
+

@@ -1,0 +1,36 @@
+# GDB script for loading ram.bin process
+
+source gnu_utility/flash_download/image/rtl_gdb_jtag_boot_com.txt
+
+#===============================================================================
+#Load the file
+file ./image/target.axf
+#lo
+#restore ./image/rom.bin binary 0x0
+restore ./image/ram_1.bin binary 0x10002000
+restore ./image/ram_2.bin binary 0x10005000
+
+printf "Load image to sram.\n"
+#set $dumpstartaddr = 0x00000000
+#set $dumpendaddr = 0x10000
+#dump binary memory  rom.bin $dumpstartaddr $dumpendaddr
+
+#===============================================================================
+set $Temp = 0x0
+set $Temp = {int}($PERI_ON_BASE+$REG_SOC_PERI_FUNC0_EN)
+p /x $Temp
+
+set $Temp = ($Temp & ~(0x01 << 26))
+set $Temp = ($Temp & ~(0x01 << 27))
+set $Temp = ($Temp & ~(0x01 << 28))
+set $Temp = ($Temp | (0x01 << 28))
+p /x $Temp
+
+set {int}($PERI_ON_BASE+$REG_SOC_PERI_FUNC0_EN) = $Temp
+printf "....\n"
+printf "wakeup bit(%x):%x\n", ($PERI_ON_BASE+$REG_SOC_PERI_FUNC0_EN), {int}($PERI_ON_BASE+$REG_SOC_PERI_FUNC0_EN)
+
+c
+
+#quit
+

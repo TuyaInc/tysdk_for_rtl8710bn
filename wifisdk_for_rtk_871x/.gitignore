@@ -1,0 +1,14 @@
+*.o
+*.d
+*.map
+*.nmap
+project/realtek_ameba1_va0_example/GCC-RELEASE/application
+project/realtek_amebaz_va0_example/GCC-RELEASE/application
+project/realtek_ameba1_va0_example/inc/build_info.h
+project/realtek_amebaz_va0_example/inc/build_info.h
+#project/tuya_iot/lib
+project/realtek_amebaz_va0_example/tuya_user/**/*bin
+#project/tuya_iot/include/tuya_iot_config.h
+*.asm
+*.axf
+*.vscode
